@@ -1,97 +1,112 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Offline-First React Native Demo (Clean Architecture)
 
-# Getting Started
+This project is a minimal tutorial app that demonstrates:
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+- offline-first state updates
+- local persistence first, sync later
+- clean architecture layering in React Native + TypeScript
+- complete CRUD for todos (create, read, update, delete)
 
-## Step 1: Start Metro
+The sample app is a Todo list where changes are always written locally first.
+When the app is online, pending changes are synchronized and marked as synced.
+Online/offline status is detected from the device network state.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Architecture
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+The project follows a simple clean architecture split:
+
+- `src/domain`
+  - `entities`: core business models (`Todo`)
+  - `repositories`: abstract contracts (`TodoRepository`)
+  - `usecases`: application actions (`addTodo`, `updateTodo`, `deleteTodo`, `toggleTodo`, `syncPendingTodos`)
+- `src/data`
+  - `local`: AsyncStorage persistence
+  - `remote`: MockAPI-based sync
+  - `repositories`: concrete repository implementation
+- `src/presentation`
+  - hooks/view-model logic consumed by UI (`useTodoViewModel`)
+- `src/di`
+  - dependency wiring (`container.ts`)
+
+## How offline-first works in this demo
+
+1. Every user action updates local storage immediately.
+2. If online, new/updated todo items are marked `synced`.
+3. If offline, they are marked `pending`.
+4. On reconnect (or manual sync), pending items are sent to remote and then marked `synced`.
+5. While sync is running, an in-app notification banner is shown.
+
+## Quick Start
+
+### 1) Install dependencies
 
 ```sh
-# Using npm
-npm start
+yarn install
+```
 
-# OR using Yarn
+### 2) Start Metro
+
+```sh
 yarn start
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+### 3) Run app
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
+# Android
 yarn android
-```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
+# iOS
 yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+For iOS first-time setup:
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```sh
+bundle install
+bundle exec pod install
+```
 
-## Step 3: Modify your app
+## Demo steps
 
-Now that you have successfully run the app, let's make changes!
+1. Start in online mode.
+2. Add a few todos.
+3. Turn off mobile data/Wi-Fi on your device or emulator.
+4. Add/toggle todos while offline.
+5. Observe `Pending sync` count increase.
+6. Turn internet back on.
+7. Watch the **Syncing data...** notification banner.
+8. Verify pending items become synced.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Configure MockAPI
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+1. Create a free project at [MockAPI](https://mockapi.io/).
+2. Create a resource named `todos`.
+3. Open `src/data/remote/TodoRemoteDataSource.ts`.
+4. Set `MOCK_API_BASE_URL` to your project base URL, for example:
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+```ts
+const MOCK_API_BASE_URL = 'https://your-project.mockapi.io/api/v1';
+```
 
-## Congratulations! :tada:
+After this, sync uses real MockAPI `GET/POST/PUT/DELETE` calls.
 
-You've successfully run and modified your React Native App. :partying_face:
+## Tutorial: Extend this architecture
 
-### Now what?
+You can evolve this into production architecture by:
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+- introducing retry/backoff and conflict resolution
+- adding timestamp/version based merge strategies
+- adding network detection (`@react-native-community/netinfo`)
+- splitting UI into reusable components and navigation flows
 
-# Troubleshooting
+## Test
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+```sh
+yarn test
+```
 
-# Learn More
+## Notes
 
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- `AsyncStorage` is used for local persistence.
+- If `MOCK_API_BASE_URL` is empty, the app falls back to simulated sync.
